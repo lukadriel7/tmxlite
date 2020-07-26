@@ -40,7 +40,7 @@ ImageLayer::ImageLayer(const std::string& workingDir)
 }
 
 //public
-void ImageLayer::parse(const pugi::xml_node& node)
+void ImageLayer::parse(const pugi::xml_node& node, Map*)
 {
     std::string attribName = node.name();
     if (attribName != "imagelayer")
@@ -53,6 +53,7 @@ void ImageLayer::parse(const pugi::xml_node& node)
     setOpacity(node.attribute("opacity").as_float(1.f));
     setVisible(node.attribute("visible").as_bool(true));
     setOffset(node.attribute("offsetx").as_int(), node.attribute("offsety").as_int());
+    setSize(node.attribute("width").as_uint(), node.attribute("height").as_uint());
 
     for (const auto& child : node.children())
     {

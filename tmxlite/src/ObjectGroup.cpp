@@ -40,8 +40,10 @@ ObjectGroup::ObjectGroup()
 }
 
 //public
-void ObjectGroup::parse(const pugi::xml_node& node)
+void ObjectGroup::parse(const pugi::xml_node& node, Map* map)
 {
+    assert(map);
+
     std::string attribString = node.name();
     if (attribString != "objectgroup")
     {
@@ -60,6 +62,7 @@ void ObjectGroup::parse(const pugi::xml_node& node)
     setOpacity(node.attribute("opacity").as_float(1.f));
     setVisible(node.attribute("visible").as_bool(true));
     setOffset(node.attribute("offsetx").as_int(), node.attribute("offsety").as_int());
+    setSize(node.attribute("width").as_uint(), node.attribute("height").as_uint());
 
     attribString = node.attribute("draworder").as_string();
     if (attribString == "index")
@@ -81,7 +84,7 @@ void ObjectGroup::parse(const pugi::xml_node& node)
         else if (attribString == "object")
         {
             m_objects.emplace_back();
-            m_objects.back().parse(child);
+            m_objects.back().parse(child, map);
         }
     }
 }

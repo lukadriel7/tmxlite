@@ -47,8 +47,10 @@ Tileset::Tileset(const std::string& workingDir)
 }
 
 //public
-void Tileset::parse(pugi::xml_node node)
+void Tileset::parse(pugi::xml_node node, Map* map)
 {
+    assert(map);
+
     std::string attribString = node.name();
     if (attribString != "tileset")
     {
@@ -136,7 +138,11 @@ void Tileset::parse(pugi::xml_node node)
             {
                 attribString = node.attribute("trans").as_string();
                 m_transparencyColour = colourFromString(attribString);
-
+            }
+            if (node.attribute("width") && node.attribute("height"))
+            {
+                m_imageSize.x = node.attribute("width").as_int();
+                m_imageSize.y = node.attribute("height").as_int();
             }
         }
         else if (name == "tileoffset")
@@ -153,7 +159,7 @@ void Tileset::parse(pugi::xml_node node)
         }
         else if (name == "tile")
         {
-            parseTileNode(node);
+            parseTileNode(node, map);
         }
     }
 
@@ -259,8 +265,10 @@ void Tileset::parseTerrainNode(const pugi::xml_node& node)
     }
 }
 
-void Tileset::parseTileNode(const pugi::xml_node& node)
+void Tileset::parseTileNode(const pugi::xml_node& node, Map* map)
 {
+    assert(map);
+
     Tile tile;
     tile.ID = node.attribute("id").as_int();
     if (node.attribute("terrain"))
@@ -297,15 +305,16 @@ void Tileset::parseTileNode(const pugi::xml_node& node)
     tile.probability = node.attribute("probability").as_int(100);
     tile.type = node.attribute("type").as_string();
     
-    // By default, we set the tile's values as in an Image tileset
+    //by default we set the tile's values as in an Image tileset
     tile.imagePath = m_imagePath;
     tile.imageSize = m_tileSize;
 
-    if (m_columnCount != 0) {
-        int rowIndex = tile.ID % m_columnCount;
-        int columnIndex = tile.ID / m_columnCount;
-        tile.imagePosition.x = rowIndex * m_tileSize.x;
-        tile.imagePosition.y = columnIndex * m_tileSize.y;
+    if (m_columnCount != 0) 
+    {
+        std::int32_t rowIndex = tile.ID % m_columnCount;
+        std::int32_t columnIndex = tile.ID / m_columnCount;
+        tile.imagePosition.x = m_margin + rowIndex * (m_tileSize.x + m_spacing);
+        tile.imagePosition.y = m_margin + columnIndex * (m_tileSize.y + m_spacing);
     }
 
     const auto& children = node.children();
@@ -322,7 +331,7 @@ void Tileset::parseTileNode(const pugi::xml_node& node)
         }
         else if (name == "objectgroup")
         {
-            tile.objectGroup.parse(child);
+            tile.objectGroup.parse(child, map);
         }
         else if (name == "image")
         {
@@ -378,10 +387,10 @@ void Tileset::createMissingTile(std::uint32_t ID)
     tile.imagePath = m_imagePath;
     tile.imageSize = m_tileSize;
 
-    int rowIndex = ID % m_columnCount;
-    int columnIndex = ID / m_columnCount;
-    tile.imagePosition.x = rowIndex * m_tileSize.x;
-    tile.imagePosition.y = columnIndex * m_tileSize.y;
+    std::int32_t rowIndex = ID % m_columnCount;
+    std::int32_t columnIndex = ID / m_columnCount;
+    tile.imagePosition.x = m_margin + rowIndex * (m_tileSize.x + m_spacing);
+    tile.imagePosition.y = m_margin + columnIndex * (m_tileSize.y + m_spacing);
 
     m_tiles.push_back(tile);
 }

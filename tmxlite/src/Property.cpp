@@ -35,7 +35,6 @@ using namespace tmx;
 Property::Property()
     : m_type(Type::Undef)
 {
-
 }
 
 //public
@@ -70,9 +69,17 @@ void Property::parse(const pugi::xml_node& node)
         m_type = Type::Float;
         return;
     }
-    else if(attribData == "string")
+    else if (attribData == "string")
     {
         m_stringValue = node.attribute("value").as_string();
+
+        //if value is empty, try getting the child value instead
+        //as this is how multiline string properties are stored.
+        if(m_stringValue.empty())
+        {
+            m_stringValue = node.child_value();
+        }
+        
         m_type = Type::String;
         return;
     }

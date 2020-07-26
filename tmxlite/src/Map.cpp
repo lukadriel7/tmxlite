@@ -71,6 +71,7 @@ namespace
 Map::Map()
     : m_orientation (Orientation::None),
     m_renderOrder   (RenderOrder::None),
+    m_infinite      (false),
     m_hexSideLength (0.f),
     m_staggerAxis   (StaggerAxis::None),
     m_staggerIndex  (StaggerIndex::None)
@@ -103,16 +104,58 @@ bool Map::load(const std::string& path)
     {
         m_workingDirectory.pop_back();
     }
-    
+
 
     //find the map node and bail if it doesn't exist
     auto mapNode = doc.child("map");
-    if(!mapNode)
+    if (!mapNode)
     {
-        Logger::log("Failed opening map: " + path + ", no map data found", Logger::Type::Error);
+        Logger::log("Failed opening map: " + path + ", no map node found", Logger::Type::Error);
         return reset();
     }
 
+    return parseMapNode(mapNode);
+}
+
+bool Map::loadFromString(const std::string& data, const std::string& workingDir)
+{
+    reset();
+
+    //open the doc
+    pugi::xml_document doc;
+    auto result = doc.load_string(data.c_str());
+    if (!result)
+    {
+        Logger::log("Failed opening map", Logger::Type::Error);
+        Logger::log("Reason: " + std::string(result.description()), Logger::Type::Error);
+        return false;
+    }
+
+    //make sure we have consistent path separators
+    m_workingDirectory = workingDir;
+    std::replace(m_workingDirectory.begin(), m_workingDirectory.end(), '\\', '/');
+    m_workingDirectory = getFilePath(m_workingDirectory);
+
+    if (!m_workingDirectory.empty() &&
+        m_workingDirectory.back() == '/')
+    {
+        m_workingDirectory.pop_back();
+    }
+
+    //find the map node and bail if it doesn't exist
+    auto mapNode = doc.child("map");
+    if (!mapNode)
+    {
+        Logger::log("Failed opening map: no map node found", Logger::Type::Error);
+        return reset();
+    }
+
+    return parseMapNode(mapNode);
+}
+
+//private
+bool Map::parseMapNode(const pugi::xml_node& mapNode)
+{
     //parse map attributes
     std::size_t pointPos = 0;
     std::string attribString = mapNode.attribute("version").as_string();
@@ -179,6 +222,11 @@ bool Map::load(const std::string& path)
             Logger::log(attribString + ": invalid render order. Map not loaded.", Logger::Type::Error);
             return reset();
         }
+    }
+
+    if (mapNode.attribute("infinite"))
+    {
+        m_infinite = mapNode.attribute("infinite").as_int() != 0;
     }
 
     unsigned width = mapNode.attribute("width").as_int();
@@ -262,7 +310,7 @@ bool Map::load(const std::string& path)
         if (name == "tileset")
         {
             m_tilesets.emplace_back(m_workingDirectory);
-            m_tilesets.back().parse(node);
+            m_tilesets.back().parse(node, this);
         }
         else if (name == "layer")
         {
@@ -272,12 +320,12 @@ bool Map::load(const std::string& path)
         else if (name == "objectgroup")
         {
             m_layers.emplace_back(std::make_unique<ObjectGroup>());
-            m_layers.back()->parse(node);
+            m_layers.back()->parse(node, this);
         }
         else if (name == "imagelayer")
         {
             m_layers.emplace_back(std::make_unique<ImageLayer>(m_workingDirectory));
-            m_layers.back()->parse(node);
+            m_layers.back()->parse(node, this);
         }
         else if (name == "properties")
         {
@@ -291,7 +339,7 @@ bool Map::load(const std::string& path)
         else if (name == "group")
         {
             m_layers.emplace_back(std::make_unique<LayerGroup>(m_workingDirectory, m_tileCount));
-            m_layers.back()->parse(node);
+            m_layers.back()->parse(node, this);
         }
         else
         {
@@ -313,7 +361,6 @@ bool Map::load(const std::string& path)
     return true;
 }
 
-//private
 bool Map::reset()
 {
     m_orientation = Orientation::None;
@@ -329,6 +376,9 @@ bool Map::reset()
     m_tilesets.clear();
     m_layers.clear();
     m_properties.clear();
+
+    m_templateObjects.clear();
+    m_templateTilesets.clear();
 
     return false;
 }
